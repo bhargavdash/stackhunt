@@ -1,0 +1,332 @@
+# Open Source Issue Tracker - Product Requirements Document
+
+## Project Overview
+
+**Project Name:** OSS Issue Tracker  
+**Version:** 1.0  
+**Date:** August 2025  
+**Product Owner:** [Your Name]
+
+## Executive Summary
+
+The Open Source Issue Tracker is a web application designed to help developers discover and track relevant open source contribution opportunities. Instead of manually checking GitHub repositories, users receive proactive email notifications when new issues are opened in their areas of technical interest.
+
+## Problem Statement
+
+Developers interested in open source contributions face several challenges:
+- Time-consuming manual monitoring of multiple repositories
+- Difficulty discovering relevant issues matching their skillset
+- Missing opportunities due to irregular checking
+- Lack of centralized tracking for contribution opportunities
+
+## Solution Overview
+
+A web application that automates the discovery and notification process for open source issues based on user's technical interests and preferences.
+
+---
+
+## Core Features & Requirements
+
+### 1. User Authentication & Onboarding
+
+**Feature:** Google OAuth Integration
+- **Requirement:** Users must be able to sign up and log in using their Google account
+- **Technical Implementation:**
+  - Frontend: NextAuth.js with Google Provider
+  - Backend: JWT token management
+  - Database: User profile storage
+- **Acceptance Criteria:**
+  - Seamless Google sign-in flow
+  - User profile creation on first login
+  - Secure session management
+
+**Feature:** GitHub Account Linking
+- **Requirement:** Users must link their GitHub account for repository access
+- **Technical Implementation:**
+  - GitHub OAuth integration
+  - Store GitHub access tokens (encrypted)
+  - Validate GitHub API access
+- **Acceptance Criteria:**
+  - One-click GitHub account linking
+  - Proper scope permissions (repo access, user profile)
+  - Handle OAuth token refresh
+
+### 2. Technology Interest Management
+
+**Feature:** Technology Stack Configuration
+- **Requirement:** Users define their technical interests and skill levels
+- **Technical Implementation:**
+  - Dynamic form with technology tags
+  - Skill level indicators (Beginner, Intermediate, Advanced)
+  - Technology categories (Languages, Frameworks, Tools, Domains)
+- **Acceptance Criteria:**
+  - Searchable technology selection
+  - Multiple technology selection with skill levels
+  - Edit/update preferences anytime
+  - Popular technologies suggested
+
+**Database Schema:**
+```sql
+-- Users Table
+users (
+  id, google_id, email, name, github_username, 
+  github_token_encrypted, created_at, updated_at
+)
+
+-- Technologies Table
+technologies (
+  id, name, category, popularity_score
+)
+
+-- User Technologies Table
+user_technologies (
+  user_id, technology_id, skill_level, created_at
+)
+```
+
+### 3. Repository Discovery & Monitoring
+
+**Feature:** Repository Selection
+- **Requirement:** System discovers relevant repositories based on user interests
+- **Technical Implementation:**
+  - GitHub Search API integration
+  - Repository filtering by language/topics
+  - Star count and activity metrics
+  - User can manually add repositories
+- **Acceptance Criteria:**
+  - Automatic repository suggestions
+  - Manual repository addition
+  - Repository health metrics display
+  - Remove/block repositories option
+
+**Feature:** Issue Monitoring System
+- **Requirement:** Continuous monitoring of selected repositories for new issues
+- **Technical Implementation:**
+  - Background job processing (Node.js + Bull Queue + Redis)
+  - GitHub API polling with rate limit management
+  - GitHub Webhooks for real-time updates (when possible)
+  - Issue deduplication and filtering
+- **Acceptance Criteria:**
+  - New issues detected within 15 minutes
+  - No duplicate notifications
+  - Respect GitHub API rate limits
+  - Handle API failures gracefully
+
+### 4. Intelligent Issue Matching
+
+**Feature:** Smart Issue Filtering
+- **Requirement:** Match issues to user's technical interests and skill level
+- **Technical Implementation:**
+  - Keyword matching in issue titles/descriptions
+  - Technology stack detection from repository
+  - Issue complexity scoring algorithm
+  - Machine learning for improved relevance (future enhancement)
+- **Matching Algorithm:**
+  - Repository language/topic matching (40% weight)
+  - Issue title/description keyword matching (35% weight)
+  - Issue labels matching (15% weight)
+  - User skill level vs issue complexity (10% weight)
+
+### 5. Notification System
+
+**Feature:** Email Notifications
+- **Requirement:** Send timely email notifications for matched issues
+- **Technical Implementation:**
+  - Email service integration (SendGrid/AWS SES)
+  - Customizable notification templates
+  - Digest options (immediate, daily, weekly)
+  - Unsubscribe functionality
+- **Acceptance Criteria:**
+  - Professional email templates
+  - Issue details with direct GitHub links
+  - User preference controls
+  - Delivery tracking and analytics
+
+**Feature:** Notification Preferences
+- **Requirement:** Users control notification frequency and types
+- **Options:**
+  - Immediate notifications
+  - Daily digest
+  - Weekly digest
+  - Technology-specific preferences
+  - Difficulty level filtering
+
+### 6. Dashboard & Analytics
+
+**Feature:** User Dashboard
+- **Requirement:** Centralized view of opportunities and activity
+- **Components:**
+  - Recent issue matches
+  - Trending technologies
+  - Contribution statistics
+  - Repository activity overview
+- **Technical Implementation:**
+  - React components with real-time data
+  - Chart.js for analytics visualization
+  - GitHub API for contribution tracking
+
+**Feature:** Issue Management
+- **Requirement:** Track and manage discovered issues
+- **Functionality:**
+  - Mark issues as "Interested"
+  - "Not Interested" feedback for ML improvement
+  - Track application status
+  - Issue difficulty indicators
+  - Estimated time to complete
+
+---
+
+## Technical Architecture
+
+### Frontend Stack
+- **Framework:** Next.js 14 with App Router
+- **UI Library:** React 18 with TypeScript
+- **Styling:** Tailwind CSS + Shadcn/ui components
+- **State Management:** Zustand or React Query
+- **Authentication:** NextAuth.js
+
+### Backend Stack
+- **Runtime:** Node.js with Express.js
+- **Language:** TypeScript
+- **API Design:** RESTful APIs + GraphQL (optional)
+- **Job Processing:** Bull Queue with Redis
+- **Email Service:** SendGrid or AWS SES
+
+### Database
+- **Primary Database:** PostgreSQL
+- **Caching:** Redis
+- **ORM:** Prisma or TypeORM
+- **Search:** Elasticsearch (future enhancement)
+
+### External APIs
+- **GitHub API v4 (GraphQL)** for efficient data fetching
+- **GitHub Webhooks** for real-time updates
+- **Google OAuth 2.0** for authentication
+
+### Infrastructure
+- **Hosting:** Vercel (Frontend) + Railway/Render (Backend)
+- **CI/CD:** GitHub Actions
+- **Monitoring:** Sentry for error tracking
+- **Analytics:** PostHog or Google Analytics
+
+---
+
+## System Architecture Diagram
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Frontend      │    │    Backend       │    │   External      │
+│   (Next.js)     │◄──►│   (Node.js)      │◄──►│   Services      │
+│                 │    │                  │    │                 │
+│ • Dashboard     │    │ • REST API       │    │ • GitHub API    │
+│ • Auth          │    │ • Job Queue      │    │ • SendGrid      │
+│ • Settings      │    │ • Notifications  │    │ • Google OAuth  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                       ┌────────▼────────┐
+                       │   Database      │
+                       │  (PostgreSQL)   │
+                       │                 │
+                       │ • Users         │
+                       │ • Issues        │
+                       │ • Repositories  │
+                       │ • Notifications │
+                       └─────────────────┘
+```
+
+---
+
+## Development Phases
+
+### Phase 1: MVP (4-6 weeks)
+- User authentication (Google + GitHub OAuth)
+- Basic technology interest setup
+- Manual repository addition
+- Simple issue notification system
+- Basic dashboard
+
+### Phase 2: Enhanced Features (3-4 weeks)
+- Intelligent repository discovery
+- Advanced filtering algorithms
+- Email digest options
+- Issue management features
+- Analytics dashboard
+
+### Phase 3: Advanced Features (4-5 weeks)
+- Machine learning for better matching
+- GitHub webhooks integration
+- Advanced analytics
+- Mobile responsiveness optimization
+- Performance optimizations
+
+---
+
+## Success Metrics
+
+### User Engagement
+- Daily active users
+- Email open rates (target: >25%)
+- Click-through rates to GitHub issues (target: >15%)
+- User retention rate (target: >60% after 30 days)
+
+### Technical Performance
+- API response times (<200ms for dashboard)
+- Issue detection accuracy (user feedback based)
+- System uptime (target: 99.5%)
+- GitHub API rate limit efficiency
+
+### Business Metrics
+- User sign-up conversion rate
+- Technology interest completion rate
+- Average issues per user per week
+- User satisfaction scores
+
+---
+
+## Risk Assessment & Mitigation
+
+### Technical Risks
+1. **GitHub API Rate Limits**
+   - Mitigation: Intelligent caching, webhook usage, token rotation
+2. **Scale Handling**
+   - Mitigation: Queue-based architecture, database optimization
+3. **Email Deliverability**
+   - Mitigation: Professional email service, authentication setup
+
+### Business Risks
+1. **User Adoption**
+   - Mitigation: Simple onboarding, clear value proposition
+2. **Competition**
+   - Mitigation: Focus on user experience and accuracy
+
+---
+
+## Future Enhancements
+
+### Version 2.0 Features
+- Mobile application (React Native)
+- Slack/Discord integrations
+- Team collaboration features
+- GitHub contribution analytics
+- AI-powered issue difficulty assessment
+- Community features (issue recommendations from peers)
+
+### Advanced Features
+- Chrome extension for GitHub integration
+- Integration with other version control platforms
+- Contribution pathway recommendations
+- Mentorship matching for complex issues
+
+---
+
+## Conclusion
+
+The Open Source Issue Tracker addresses a genuine need in the developer community by automating the discovery of relevant contribution opportunities. The proposed technical architecture ensures scalability while maintaining simplicity for the MVP launch.
+
+The phased development approach allows for iterative improvement based on user feedback while establishing a solid foundation for advanced features.
+
+**Next Steps:**
+1. Technical team review and feedback
+2. Architecture refinement based on team input
+3. Sprint planning for Phase 1 development
+4. Setup development environment and CI/CD pipeline
