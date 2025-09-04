@@ -1,5 +1,6 @@
 // StackHunt - Database Schema
 // Phase 1: Foundation & Authentication
+// Phase 2: Technology Interest Management
 
 generator client {
   provider = "prisma-client-js"
@@ -55,6 +56,11 @@ model User {
   accounts    Account[]
   sessions    Session[]
   preferences UserPreferences?
+  technologies UserTechnology[]
+  
+  // Phase 3: Repository Discovery Engine relations
+  repositorySubscriptions UserRepositorySubscription[]
+  issueMatches           UserIssueMatch[]
 }
 
 model VerificationToken {
@@ -72,6 +78,7 @@ model UserPreferences {
   notificationFrequency String @default("daily") @map("notification_frequency") // 'immediate', 'daily', 'weekly'
   emailEnabled          Boolean @default(true) @map("email_enabled")
   themePreference       String @default("system") @map("theme_preference") // 'light', 'dark', 'system'
+  onboardingCompleted   Boolean @default(false) @map("onboarding_completed")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
@@ -80,3 +87,198 @@ model UserPreferences {
 
   @@map("user_preferences")
 }
+
+// Phase 2: Technology Management
+
+// Technologies database - languages, frameworks, tools, domains
+model Technology {
+  id               String @id @default(cuid())
+  name             String @unique
+  category         String // 'language', 'framework', 'tool', 'domain'
+  description      String?
+  popularityScore  Int @default(0) @map("popularity_score")
+  iconUrl          String? @map("icon_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  userTechnologies UserTechnology[]
+
+  @@map("technologies")
+}
+
+// User's selected technologies with skill levels
+model UserTechnology {
+  id           String @id @default(cuid())
+  userId       String @map("user_id")
+  technologyId String @map("technology_id")
+  skillLevel   String // 'beginner', 'intermediate', 'advanced'
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, technologyId])
+  @@map("user_technologies")
+}
+
+// Phase 3: Repository Discovery Engine
+
+// GitHub repositories discovered through our system
+model Repository {
+  id               String @id @default(cuid())
+  githubId         BigInt @unique @map("github_id") // GitHub's repository ID
+  fullName         String @map("full_name") // "owner/repo"
+  name             String
+  owner            String
+  description      String? @db.Text
+  url              String @map("html_url")
+  language         String?
+  stargazersCount  Int @default(0) @map("stargazers_count")
+  forksCount       Int @default(0) @map("forks_count")
+  openIssuesCount  Int @default(0) @map("open_issues_count")
+  subscribersCount Int @default(0) @map("subscribers_count")
+  
+  // Repository health and quality metrics
+  healthScore      Decimal? @map("health_score") @db.Decimal(3,2) // 0.00 to 1.00
+  lastActivity     DateTime? @map("last_activity") // Last commit, issue, or PR
+  isArchived       Boolean @default(false) @map("is_archived")
+  hasGoodFirstIssues Boolean @default(false) @map("has_good_first_issues")
+  hasContributingGuide Boolean @default(false) @map("has_contributing_guide")
+  hasReadme        Boolean @default(true) @map("has_readme")
+  
+  // Discovery and tracking
+  discoveryMethod  String @default("technology_search") @map("discovery_method") // 'technology_search', 'manual_add', 'trending'
+  isMonitored      Boolean @default(false) @map("is_monitored")
+  
+  // Timestamps
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  lastSyncAt       DateTime? @map("last_sync_at")
+
+  // Relations
+  issues           Issue[]
+  userRepositorySubscriptions UserRepositorySubscription[]
+  issueMatches     UserIssueMatch[]
+
+  @@index([githubId])
+  @@index([fullName])
+  @@index([language])
+  @@index([healthScore])
+  @@map("repositories")
+}
+
+// GitHub issues from monitored repositories
+model Issue {
+  id              String @id @default(cuid())
+  githubId        BigInt @unique @map("github_id") // GitHub's issue ID
+  repositoryId    String @map("repository_id")
+  number          Int // Issue number within repository
+  title           String @db.Text
+  body            String? @db.Text
+  state           String // 'open', 'closed'
+  url             String @map("html_url")
+  
+  // Issue metadata
+  labels          Json @default("[]") // Array of label objects
+  assignees       Json @default("[]") // Array of assignee objects
+  authorUsername  String @map("author_username")
+  authorAvatarUrl String? @map("author_avatar_url")
+  
+  // Issue quality and beginner-friendliness
+  isGoodFirstIssue Boolean @default(false) @map("is_good_first_issue")
+  isHelpWanted     Boolean @default(false) @map("is_help_wanted")
+  difficultyScore  Decimal? @map("difficulty_score") @db.Decimal(3,2) // 0.00 (easy) to 1.00 (hard)
+  estimatedHours   Int? @map("estimated_hours") // Estimated time to complete
+  
+  // Engagement metrics
+  commentsCount    Int @default(0) @map("comments_count")
+  reactionsCount   Int @default(0) @map("reactions_count")
+  
+  // Timestamps
+  createdAt        DateTime @map("created_at") // GitHub creation time
+  updatedAt        DateTime @map("updated_at") // GitHub last update
+  syncedAt         DateTime @default(now()) @map("synced_at") // Last sync with GitHub
+  
+  // Relations
+  repository       Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  userIssueMatches UserIssueMatch[]
+
+  @@index([githubId])
+  @@index([repositoryId])
+  @@index([state])
+  @@index([isGoodFirstIssue])
+  @@index([createdAt])
+  @@map("issues")
+}
+
+// User subscriptions to specific repositories
+model UserRepositorySubscription {
+  id           String @id @default(cuid())
+  userId       String @map("user_id")
+  repositoryId String @map("repository_id")
+  
+  // Subscription preferences
+  subscriptionType String @default("auto") @map("subscription_type") // 'manual', 'auto', 'trending'
+  notifyNewIssues  Boolean @default(true) @map("notify_new_issues")
+  notifyClosedIssues Boolean @default(false) @map("notify_closed_issues")
+  priority         Int @default(5) // 1-10 priority for notifications
+  
+  // Timestamps
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, repositoryId])
+  @@map("user_repository_subscriptions")
+}
+
+// Matched issues for users based on their technology interests
+model UserIssueMatch {
+  id           String @id @default(cuid())
+  userId       String @map("user_id")
+  issueId      String @map("issue_id")
+  repositoryId String @map("repository_id")
+  
+  // Matching algorithm results
+  matchScore   Decimal @map("match_score") @db.Decimal(3,2) // 0.00 to 1.00
+  matchReasons Json @map("match_reasons") // Array of reasons why this issue matched
+  
+  // Technology context
+  matchedTechnologies Json @map("matched_technologies") // Array of user technologies that matched
+  
+  // User interaction
+  isViewed     Boolean @default(false) @map("is_viewed")
+  isBookmarked Boolean @default(false) @map("is_bookmarked")
+  isDismissed  Boolean @default(false) @map("is_dismissed")
+  userRating   Int? @map("user_rating") // 1-5 stars for match quality feedback
+  
+  // Notification status
+  isNotified   Boolean @default(false) @map("is_notified")
+  notifiedAt   DateTime? @map("notified_at")
+  
+  // Discovery context
+  discoveryMethod String @default("technology_search") @map("discovery_method")
+  discoveredAt    DateTime @default(now()) @map("discovered_at")
+  
+  // Timestamps
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issue        Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+
+  @@unique([userId, issueId])
+  @@index([userId])
+  @@index([matchScore])
+  @@index([discoveredAt])
+  @@map("user_issue_matches")
+}
+

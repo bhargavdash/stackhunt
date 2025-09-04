@@ -1,0 +1,14 @@
+1. When new user logs in it shows "Welcome back", but it should show "Welcome". For the user whom we already have 
+technologies preference in our db, we can show "Welcome back" and load there dashboard.
+2. Initial dashboard before onboarding needs improvement, it still shows the previous strategy of connecting to
+github. Also this 3 column plan does not look good. 
+3. After completing onboarding, it still shows "Github Connected" in the dashboard, and a "Connect to github"
+button is also present below the navbar.
+4. The flow should be whenever user completes the onboarding or edits the present technologies, we should 
+get the issues and repos from github through our backend and show them. 
+5. While we fetch from github, we can redirect the user to dashboard and show them a loader, which says 
+"Fetching from github.. " or something like that (replace if you know anything better).
+6. Also, this 2 column approach in the dashboard looks ugly. Think like a UI/UX designer and build me a beautiful
+looking UI consisting of -> 
+6.1 The major part of dashboard will show the issues from github and other metadata. 
+6.2 There will also be a section/page/sidebar or something for the user to edit its technologies.
